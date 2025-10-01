@@ -1,0 +1,134 @@
+package in.ap.service.impl;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+
+import in.ap.entity.Batch;
+import in.ap.entity.Payment;
+import in.ap.entity.PurchaseOrder;
+import in.ap.entity.Student;
+import in.ap.entity.User;
+import in.ap.repo.BatchRepo;
+import in.ap.repo.PaymentRepo;
+import in.ap.repo.PurchaseOrderRepo;
+import in.ap.repo.StudentRepo;
+import in.ap.repo.UserRepo;
+import in.ap.service.UserService;
+import lombok.AllArgsConstructor;
+@Service
+@AllArgsConstructor
+public class UserServiceImpl implements UserService {
+	
+	private UserRepo userRepo;
+	private BatchRepo batchRepo;
+	private StudentRepo studentRepo;
+	private PurchaseOrderRepo purchaseOrderRepo;
+	private PaymentRepo paymentRepo;
+
+	@Override
+	public User saveUser(User user) {
+		return userRepo.save(user);
+	}
+
+	@Override
+	public User updateUser(User user) {
+		
+		return userRepo.save(user);
+	}
+
+	@Override
+	public User getUser(Long userId) {
+		return userRepo.findById(userId).orElseThrow();
+	
+	}
+
+	@Override
+	public List<User> getAllUsers() {
+		
+		return userRepo.findAll();
+	}
+
+	@Override
+	public User getUserByEmail(String email) {
+		
+		return userRepo.findByEmail(email);
+	}
+
+	@Override
+	public List<Batch> getAllBatches() {
+		
+		return batchRepo.findAll();
+	}
+
+	@Override
+	public PurchaseOrder createOrder(Long batchId) {
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		User user = userRepo.findByEmail(email);
+		Student student = studentRepo.findByUser(user);
+		Batch batch = batchRepo.findById(batchId).get();
+		
+		PurchaseOrder po = new PurchaseOrder();
+		po.setBatch(batch);
+		po.setFee(batch.getCourse().getFee());
+		po.setPurchaseDate(LocalDate.now());
+		po.setStudent(student);
+		po.setUser(user);
+		po.setStatus("PENDING");
+		
+		PurchaseOrder savedPo = purchaseOrderRepo.save(po);
+		return savedPo;
+	}
+
+	@Override
+	public Payment doPayment(Long purchaseOrderId) {
+		PurchaseOrder po = purchaseOrderRepo.findById(purchaseOrderId).get();
+		Payment payment = new Payment();
+		try {
+			
+		 String ranString = generateRandomString();
+		String paymentId="P143"+ranString;
+		
+		String randomString = generateRandomString();
+		String orderId="O587"+randomString;
+		
+		String randomString2 = generateRandomString();
+		String recieptId="Rec##445%"+randomString2;
+		
+		
+		payment.setPurchaseOrder(po);
+		payment.setPaymentId(paymentId);
+		payment.setOrderId(orderId);
+		payment.setReciptId(recieptId);
+		payment.setAmount(po.getFee());
+		payment.setEmail(po.getUser().getEmail());
+		
+		payment.setStatus("COMPLITED");	
+		paymentRepo.save(payment);
+			
+		}
+		catch (Exception e) {
+			
+			payment.setStatus("FAILED");	
+		}
+		return payment;
+	}
+	
+	String generateRandomString() {
+		Character[] chrs={'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R',
+	               'S','T','U','V','W','X','Y','Z','a','b','c','d','e','f','g','h','i','j','k',
+	               'l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','1','2','3','4',
+	               '5','6','7','8','9'};
+		int ran;
+		String ranString="";
+		for (int i=0;i<9;i++) {
+			ran=(int) (Math.random()*chrs.length);
+			ranString+=chrs[ran];
+		}
+		return ranString;
+	}
+
+}

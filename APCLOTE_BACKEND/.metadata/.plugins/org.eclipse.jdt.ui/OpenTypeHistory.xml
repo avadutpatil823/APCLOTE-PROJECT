@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<typeInfoHistroy>
+    <typeInfo handle="=APCLOTE/src\/main\/java=/optional=/true=/=/maven.pomderived=/true=/&lt;in.ap.service{LecturerService.java[LecturerService" modifiers="513" timestamp="1759257218236"/>
+    <typeInfo handle="=APCLOTE/src\/main\/java=/optional=/true=/=/maven.pomderived=/true=/&lt;in.ap.service{AdminService.java[AdminService" modifiers="513" timestamp="1759169720351"/>
+    <typeInfo handle="=APCLOTE/src\/main\/java=/optional=/true=/=/maven.pomderived=/true=/&lt;in.ap.service{AuthService.java[AuthService" modifiers="513" timestamp="1754137182692"/>
+    <typeInfo handle="=APCLOTE/C:\/Users\/avadu\/.m2\/repository\/org\/springframework\/data\/spring-data-jpa\/3.5.3\/spring-data-jpa-3.5.3.jar=/maven.pomderived=/true=/=/maven.groupId=/org.springframework.data=/=/maven.artifactId=/spring-data-jpa=/=/maven.version=/3.5.3=/=/maven.scope=/compile=/=/maven.pomderived=/true=/&lt;org.springframework.data.jpa.repository(JpaRepository.class[JpaRepository" modifiers="1537" timestamp="1756209083754"/>
+</typeInfoHistroy>
