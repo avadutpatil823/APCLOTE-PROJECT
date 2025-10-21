@@ -7,4 +7,5 @@ import in.ap.entity.SubjectList;
 @Repository
 public interface SubjectListRepo extends JpaRepository<SubjectList, Long> {
 
+	public SubjectList findByName(String name);
 }

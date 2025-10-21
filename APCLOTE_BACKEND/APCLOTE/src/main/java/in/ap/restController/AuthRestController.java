@@ -1,5 +1,7 @@
 package in.ap.restController;
 
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import in.ap.entity.User;
@@ -48,6 +51,18 @@ public class AuthRestController {
 		return new ResponseEntity<JwtResponse>(jwtToken, HttpStatus.CREATED);
 		
 	}
+	
+	@GetMapping("/oauth2/success")
+	public ResponseEntity<Map<String, String>> oauthSuccess(@RequestParam String token) {
+	    return ResponseEntity.ok(Map.of("message", "Login successful", "token", token));
+	}
+
+	@GetMapping("/oauth2/failure")
+	public ResponseEntity<Map<String, String>> oauthFailure() {
+	    return ResponseEntity.status(401).body(Map.of("error", "OAuth2 login failed"));
+	}
+
+
 	
 	
 	

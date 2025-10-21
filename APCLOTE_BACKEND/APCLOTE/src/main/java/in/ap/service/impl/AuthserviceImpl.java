@@ -1,6 +1,9 @@
 package in.ap.service.impl;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -8,10 +11,12 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import in.ap.entity.OtpVerification;
 import in.ap.entity.User;
 import in.ap.helper.EmailService;
 import in.ap.helper.JwtResponse;
 import in.ap.helper.UserException;
+import in.ap.repo.OtpVerificationRepo;
 import in.ap.repo.UserRepo;
 import in.ap.security.JwtProvider;
 import in.ap.service.AuthService;
@@ -22,7 +27,7 @@ import lombok.AllArgsConstructor;
 public class AuthserviceImpl implements AuthService {
 	
 	private UserRepo userRepo;
-	
+	  private OtpVerificationRepo otpRepo;
 	private EmailService emailService;
 	private PasswordEncoder encoder;
 	
@@ -30,11 +35,13 @@ public class AuthserviceImpl implements AuthService {
 
 	@Override
 	public User register(User u) throws Exception {
+		User savedUser=new User();
+		
 		User isExist = userRepo.findByEmail(u.getEmail());
 		if(isExist!=null) {
 			throw new UserException("User With This Email is Allready Exist Please Enter Another Eamil");
 		}
-		  User savedUser = userRepo.save(u);
+		   savedUser = userRepo.save(u);
 		  String subject="Welcome to APCLOTE – Your Learning Journey Starts Here!";
 		  String body="Hi "+savedUser.getName()+",\r\n"
 		  		+ "\r\n"
@@ -59,7 +66,13 @@ public class AuthserviceImpl implements AuthService {
 		  		+ "Welcome aboard,\r\n"
 		  		+ "Team APCLOTE\r\n"
 		  		+ "Learn. Practice. Grow.";
-		  emailService.sendEmail(savedUser.getEmail(), subject, body);
+		  String sendEmail = emailService.sendEmail(savedUser.getEmail(), subject, body);
+		  System.out.println(sendEmail+"==================================");
+		  if(sendEmail==null) {
+			  throw new UserException("Email is Doesn't Exist Please Enter Valid Eamil");
+				
+		  }
+		
 		return savedUser;
 	}
 
@@ -102,5 +115,9 @@ public class AuthserviceImpl implements AuthService {
 	 return response;
 		
 	}
+	
+	
+	
+	
 
 }

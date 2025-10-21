@@ -14,26 +14,27 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 public class AppConfig {
 
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-		
-		
-		http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
-		     .authorizeHttpRequests(auth->{
-		    	      auth.requestMatchers(HttpMethod.OPTIONS,"/**").permitAll()
-		    	          .requestMatchers("/api/**").authenticated()
-		    	          .requestMatchers("/lecturer/**").hasRole("LECTURER")
-		    	          .requestMatchers("/auth/**").permitAll()
-		    	          .requestMatchers("/admin/**").hasRole("ADMIN")
-		    	          .anyRequest().permitAll();
-		     })
-		     .addFilterBefore(new JwtValidator(), BasicAuthenticationFilter.class)
-		     .csrf().disable();
-		    
-		    
-		     return http.build();
-		   
+	public SecurityFilterChain filterChain(HttpSecurity http, OAuth2SuccessHandler successHandler) throws Exception {
+	    http
+	        .csrf(csrf -> csrf.disable())
+	        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+	        .authorizeHttpRequests(auth -> auth
+	            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+	            .requestMatchers("/api/**").permitAll()
+	            .requestMatchers("/auth/**").permitAll()
+	            .requestMatchers("/oauth2/**").permitAll()
+	            .requestMatchers("/lecturer/**").hasRole("LECTURER")
+	            .requestMatchers("/admin/**").hasRole("ADMIN")
+	            .anyRequest().authenticated()
+	        )
+	        .oauth2Login(oauth -> oauth
+	            .successHandler(successHandler)
+	            .failureUrl("/auth/oauth2/failure")
+	        )
+	        .addFilterBefore(new JwtValidator(), BasicAuthenticationFilter.class);
+
+	    return http.build();
 	}
-	
 	@Bean
 	public PasswordEncoder encoder()
 	{

@@ -37,7 +37,7 @@ public class Class {
 	@JoinColumn(name = "classRoom_id")
 	@JsonBackReference
 	private ClassRoom classRoom;
-	@OneToOne
+	@ManyToOne
 	@JoinColumn(name = "lecturer_id")
 	private Lecturer lecturer;
 	private LocalDate date;

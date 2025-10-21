@@ -12,6 +12,8 @@ public interface AuthService {
 	public User register(User u) throws Exception;
 
 	JwtResponse login(User u) throws UserException;
+	
+	
 
 
 }

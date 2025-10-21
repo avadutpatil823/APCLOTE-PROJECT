@@ -1,0 +1,174 @@
+package in.ap.service.impl;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
+
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import in.ap.entity.OtpVerification;
+import in.ap.entity.User;
+import in.ap.helper.EmailService;
+import in.ap.helper.JwtResponse;
+import in.ap.helper.UserException;
+import in.ap.repo.OtpVerificationRepo;
+import in.ap.repo.UserRepo;
+import in.ap.security.JwtProvider;
+import in.ap.service.AuthService;
+import lombok.AllArgsConstructor;
+
+@AllArgsConstructor
+@Service
+public class AuthserviceImpl implements AuthService {
+	
+	private UserRepo userRepo;
+	  private OtpVerificationRepo otpRepo;
+	private EmailService emailService;
+	private PasswordEncoder encoder;
+	
+	
+
+	@Override
+	public User register(User u) throws Exception {
+		User savedUser=new User();
+		
+		User isExist = userRepo.findByEmail(u.getEmail());
+		if(isExist!=null) {
+			throw new UserException("User With This Email is Allready Exist Please Enter Another Eamil");
+		}
+		   savedUser = userRepo.save(u);
+		  String subject="Welcome to APCLOTE – Your Learning Journey Starts Here!";
+		  String body="Hi "+savedUser.getName()+",\r\n"
+		  		+ "\r\n"
+		  		+ "Thank you for registering with APCLOTE – your trusted partner in online coaching and career growth!\r\n"
+		  		+ "\r\n"
+		  		+ "Your account has been successfully created. You can now:\r\n"
+		  		+ "\r\n"
+		  		+ "Access personalized learning content\r\n"
+		  		+ "\r\n"
+		  		+ "Take practice quizzes and mock tests\r\n"
+		  		+ "\r\n"
+		  		+ "Track your progress and performance\r\n"
+		  		+ "\r\n"
+		  		+ "Get expert guidance anytime, anywhere\r\n"
+		  		+ "\r\n"
+		  		+ "We're excited to be part of your journey. 🚀\r\n"
+		  		+ "\r\n"
+		  		+ "🧠 Start learning now: Login to APCLOTE\r\n"
+		  		+ "\r\n"
+		  		+ "If you have any questions or need support, feel free to reply to this email or contact us at support@apclote.com.\r\n"
+		  		+ "\r\n"
+		  		+ "Welcome aboard,\r\n"
+		  		+ "Team APCLOTE\r\n"
+		  		+ "Learn. Practice. Grow.";
+		  String sendEmail = emailService.sendEmail(savedUser.getEmail(), subject, body);
+		  System.out.println(sendEmail+"==================================");
+		  if(sendEmail==null) {
+			  throw new UserException("Email is Doesn't Exist Please Enter Valid Eamil");
+				
+		  }
+		
+		return savedUser;
+	}
+
+	@Override
+	public JwtResponse login(User u) throws UserException {
+	 User checkuser = userRepo.findByEmail(u.getEmail());
+	 JwtResponse response = new JwtResponse();
+	 if(checkuser==null) {
+		 response.setMessage("..No User Found With This Email");
+		
+	 }
+	   
+	 else if(!encoder.matches(u.getPassword(), checkuser.getPassword())) {
+		 response.setMessage("..Wrong Creditials");
+	 }
+	 else {
+		      List<GrantedAuthority> authorityList = AuthorityUtils.commaSeparatedStringToAuthorityList(checkuser.getRole());
+		    UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(checkuser.getEmail(), checkuser.getPassword(),authorityList);
+		     JwtProvider provider = new JwtProvider();
+		   String token = provider.generateToken(authenticationToken);
+		   response.setMessage("Login Successfully");
+		   response.setToken(token);
+		   
+		   String subject="Login Successful - Welcome Back to APCLOTE!";
+		   String body="Dear "+checkuser.getName()+",\r\n"
+		   		+ "\r\n"
+		   		+ "You have successfully logged into your APCLOTE account.\r\n"
+		   		+ "\r\n"
+		   		+ "We're glad to have you back! Continue your learning journey with expert-led courses, live sessions, and personalized progress tracking on our online coaching platform.\r\n"
+		   		+ "\r\n"
+		   		+ "If this login wasn't you, please reset your password immediately or contact our support team.\r\n"
+		   		+ "\r\n"
+		   		+ "Happy Learning,  \r\n"
+		   		+ "The APCLOTE Team  \r\n"
+		   		+ "support@apclote.com  ";
+		   emailService.sendEmail(u.getEmail(), subject, body);
+		  
+		  
+	 }
+	 return response;
+		
+	}
+	
+	
+	@Override
+    public String sendOtp(String email) throws Exception {
+        User user = userRepo.findByEmail(email);
+        if (user == null) {
+            throw new UserException("No user found with this email.");
+        }
+
+        String otp = String.valueOf(new Random().nextInt(900000) + 100000);
+        LocalDateTime expiryTime = LocalDateTime.now().plusMinutes(5);
+
+        Optional<OtpVerification> existing = otpRepo.findByEmail(email);
+        OtpVerification otpEntity = existing.orElse(new OtpVerification());
+        otpEntity.setEmail(email);
+        otpEntity.setOtp(otp);
+        otpEntity.setExpiryTime(expiryTime);
+        otpRepo.save(otpEntity);
+
+        String subject = "Your OTP for Password Reset";
+        String body = "Hello " + user.getName() + ",\n\nYour OTP for resetting your password is: " + otp
+                + "\nThis OTP will expire in 5 minutes.";
+        emailService.sendEmail(email, subject, body);
+
+        return "OTP sent to your registered email.";
+    }
+
+    // 🔹 New: Verify OTP and reset password
+    @Override
+    public String verifyOtp(String email, String otp, String newPassword) throws Exception {
+        Optional<OtpVerification> otpData = otpRepo.findByEmail(email);
+        if (otpData.isEmpty()) {
+            throw new UserException("No OTP found for this email.");
+        }
+
+        OtpVerification otpEntity = otpData.get();
+
+        if (!otpEntity.getOtp().equals(otp)) {
+            throw new UserException("Invalid OTP.");
+        }
+
+        if (otpEntity.getExpiryTime().isBefore(LocalDateTime.now())) {
+            throw new UserException("OTP expired.");
+        }
+
+        User user = userRepo.findByEmail(email);
+        user.setPassword(encoder.encode(newPassword));
+        userRepo.save(user);
+        otpRepo.delete(otpEntity);
+
+        return "Password reset successfully!";
+    }
+	
+	
+	
+
+}

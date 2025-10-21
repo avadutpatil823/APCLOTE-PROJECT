@@ -13,4 +13,7 @@ import in.ap.entity.UserTestAnswer;
 public interface UserTestAnsRepo extends JpaRepository<UserTestAnswer, Long> {
 
 	public List<UserTestAnswer> findByUserAndTest(Test test,User user);
+	
+	public List<UserTestAnswer> findByUser(User user);
+	
 }

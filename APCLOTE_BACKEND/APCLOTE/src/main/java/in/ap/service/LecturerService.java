@@ -8,11 +8,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import in.ap.entity.Batch;
+import in.ap.entity.BatchLecturerSubjectInter;
 import in.ap.entity.Class;
 import in.ap.entity.ClassNotesFile;
 import in.ap.entity.ClassRoom;
 import in.ap.entity.ClassVideo;
 import in.ap.entity.Lecturer;
+import in.ap.entity.LecturerBatchSubject;
 import in.ap.entity.Test;
 
 @Service
@@ -24,4 +26,5 @@ public interface LecturerService {
 	List<Lecturer> getAlllecturers();
 	Class createClass(Class class1, Principal principal);
 	 public Test createTest(Test test,Long ClassId);
+	 public List<BatchLecturerSubjectInter> getlbsOfLecturer();
 }

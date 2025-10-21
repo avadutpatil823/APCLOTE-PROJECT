@@ -1,18 +1,44 @@
 package in.ap.service.impl;
 
+import java.io.File;
+
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.lang.reflect.Array;
+import java.nio.file.Files;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.hibernate.Length;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.*;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import in.ap.entity.Batch;
+import in.ap.entity.BatchValidyDate;
 import in.ap.entity.Class;
+import in.ap.entity.ClassRoom;
+import in.ap.entity.Lecturer;
 import in.ap.entity.Payment;
 import in.ap.entity.PurchaseOrder;
 import in.ap.entity.Question;
@@ -21,7 +47,9 @@ import in.ap.entity.Test;
 import in.ap.entity.User;
 import in.ap.entity.UserTestAnswer;
 import in.ap.helper.EmailService;
+import in.ap.helper.UserException;
 import in.ap.repo.BatchRepo;
+import in.ap.repo.BatchValidityDateRepo;
 import in.ap.repo.ClassRepo;
 import in.ap.repo.PaymentRepo;
 import in.ap.repo.PurchaseOrderRepo;
@@ -43,6 +71,10 @@ public class UserServiceImpl implements UserService {
 	private ClassRepo classRepo;
 	private TestRepo testRepo;
 	private UserTestAnsRepo userTestAnsRepo;
+	private BatchValidityDateRepo bvRepo;
+	private final Map<String, String> otpStore = new ConcurrentHashMap();
+	private EmailService emailService;
+	private PasswordEncoder encoder;
 
 	@Override
 	public User saveUser(User user) {
@@ -60,6 +92,8 @@ public class UserServiceImpl implements UserService {
 		return userRepo.findById(userId).orElseThrow();
 	
 	}
+	
+	
 
 	@Override
 	public List<User> getAllUsers() {
@@ -73,21 +107,115 @@ public class UserServiceImpl implements UserService {
 		return userRepo.findByEmail(email);
 	}
 
+	public Page<Batch> updateForSecurePage(Page<Batch> batchPage) {
+
+	    List<Batch> updatedBatches = new ArrayList<>();
+
+	    for (Batch batch : batchPage.getContent()) {
+
+	        // Process lecturers
+	        List<Lecturer> lecturers = batch.getLecturers();
+	        List<Lecturer> updatedLecturers = new ArrayList<>();
+
+	        if (lecturers != null) {
+	            for (Lecturer lecturer : lecturers) {
+	                lecturer.setSalary(null);
+	                lecturer.setLecturerBatchSubjects(null);
+
+	                if (lecturer.getUser() != null) {
+	                    lecturer.getUser().setAddress(null);
+	                    lecturer.getUser().setCreatedAt(null);
+	                    lecturer.getUser().setPassword(null);
+	                    lecturer.getUser().setPhono(null);
+	                    lecturer.getUser().setRole(null);
+	                    lecturer.getUser().setUpdateAt(null);
+	                }
+
+	                updatedLecturers.add(lecturer);
+	            }
+	        }
+	        batch.setLecturers(updatedLecturers);
+
+	        // Process classrooms
+	        List<ClassRoom> classRooms = batch.getClassRooms();
+	        List<ClassRoom> updatedClassRooms = new ArrayList<>();
+
+	        if (classRooms != null) {
+	            for (ClassRoom classRoom : classRooms) {
+	                List<Class> classes = classRoom.getClasses();
+	                List<Class> updatedClasses = new ArrayList<>();
+
+	                if (classes != null) {
+	                    for (Class class1 : classes) {
+	                        Lecturer lecturer = class1.getLecturer();
+	                        if (lecturer != null) {
+	                            lecturer.setBatches(null);
+	                            lecturer.setLecturerBatchSubjects(null);
+	                            lecturer.setDateOfJoining(null);
+	                            lecturer.setSalary(null);
+
+	                            if (lecturer.getUser() != null) {
+	                                User user = new User();
+	                                user.setName(lecturer.getUser().getName());
+	                                lecturer.setUser(user);
+	                            }
+	                        }
+
+	                        class1.setLecturer(lecturer);
+	                        class1.setNotes(null);
+	                        class1.setTests(null);
+	                        class1.setVideos(null);
+	                        class1.setZoomlink(null);
+
+	                        updatedClasses.add(class1);
+	                    }
+	                }
+	                classRoom.setClasses(updatedClasses);
+	                updatedClassRooms.add(classRoom);
+	            }
+	        }
+
+	        batch.setClassRooms(updatedClassRooms);
+	        updatedBatches.add(batch);
+	    }
+
+	    // Return a new Page with sanitized data and original pagination info
+	    return new PageImpl(
+	        updatedBatches,
+	        batchPage.getPageable(),
+	        batchPage.getTotalElements()
+	    );
+	}
+	
+	
+	
+	
+	
+	
+	
 	@Override
-	public List<Batch> getAllBatches() {
+	public Page<Batch> getAllBatches(int pageNumber,int PageSize) {
+		PageRequest pageRequest = PageRequest.of(pageNumber, PageSize,Sort.by("startDate").descending());
 		
-		return batchRepo.findAll();
+		Page<Batch> batchs = batchRepo.findAll(pageRequest);
+		
+		Page<Batch> updatedBatchs = updateForSecurePage(batchs);
+		
+		return updatedBatchs;
 		
 	}
 
 	@Override
 	public PurchaseOrder createOrder(Long batchId) {
+		
+		
 		String email = SecurityContextHolder.getContext().getAuthentication().getName();
 		User user = userRepo.findByEmail(email);
 		Student student = studentRepo.findByUser(user);
 		Batch batch = batchRepo.findById(batchId).get();
 		
 		PurchaseOrder po = new PurchaseOrder();
+		po.setUniqueLL(Math.random()*100);
 		po.setBatch(batch);
 		po.setFee(batch.getCourse().getFee());
 		po.setPurchaseDate(LocalDate.now());
@@ -102,6 +230,7 @@ public class UserServiceImpl implements UserService {
 	@Override
 	public Payment doPayment(Long purchaseOrderId,String upiId) {
 		PurchaseOrder po = purchaseOrderRepo.findById(purchaseOrderId).get();
+		System.out.println(po.toString());
 		Payment payment = new Payment();
 		try {
 			
@@ -126,16 +255,37 @@ public class UserServiceImpl implements UserService {
 		paymentRepo.save(payment);
 		po.setStatus("COMPLITED");
 		purchaseOrderRepo.save(po);
+		Student std ;
+		std= studentRepo.findByUserEmail(po.getUser().getEmail());
 		
-		Student std = new Student();
+		if(std==null) {
+			
+			std=new Student();
+		}
+		
+		
+		std.setUniqueKey(Math.random()*10);
 		std.getPurchaseOrder().add(po);
-		std.getBatchs().add(po.getBatch());
 		std.setUser(po.getUser());
-		std.setValidityDate(LocalDate.now().plusYears(1));
+		std.getBatchs().add(po.getBatch());
+		BatchValidyDate bv = new BatchValidyDate();
+		bv.setBatchName(po.getBatch().getName());
+		bv.setValidityDate(LocalDate.now().plusYears(1));
+		BatchValidyDate batchValidyDate = bvRepo.save(bv);
+		std.getBatchValidyDate().add(batchValidyDate);
+		
+		
+		
+		
 		Student student = studentRepo.save(std);
-		LocalTime now = LocalTime.now();
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("h-a dd/MM/yyyy", Locale.ENGLISH);
-		 String date = now.format(formatter).toLowerCase();
+		
+		batchValidyDate.setStudent(student);
+		bvRepo.save(batchValidyDate);
+		
+		
+		LocalDateTime now = LocalDateTime.now();
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("h a dd/MM/yyyy", Locale.ENGLISH);
+		String date = now.format(formatter).toLowerCase();
 
         String formatted = now.format(formatter).toLowerCase();
 		if(payment.getStatus().equalsIgnoreCase("COMPLITED")) {
@@ -181,10 +331,15 @@ public class UserServiceImpl implements UserService {
 			
 		}
 		catch (Exception e) {
+			e.printStackTrace();
+			po.setStatus("FAILED");
 			
 			payment.setStatus("FAILED");	
 		}
-		return payment;
+		PurchaseOrder save = purchaseOrderRepo.save(po);
+		payment.setPurchaseOrder(save);
+		Payment save2 = paymentRepo.save(payment);
+		return save2;
 	}
 	
 	
@@ -206,10 +361,25 @@ public class UserServiceImpl implements UserService {
 	@Override
 	public List<Batch> getMyCourses() {
 		String email= SecurityContextHolder.getContext().getAuthentication().getName();
-		User user = userRepo.findByEmail(email);
-		Student student = studentRepo.findByUser(user);
+		
+		Student student; 
+		student= studentRepo.findByUserEmail(email);
+		
 		if(!(student==null)) {
-		  return student.getBatchs();
+			List<BatchValidyDate> batchValidyDate = student.getBatchValidyDate();
+		      List<Batch> batchs = student.getBatchs();
+		   for (BatchValidyDate bvd : batchValidyDate) {
+			    LocalDate validityDate = bvd.getValidityDate();
+			    if(validityDate.isBefore(LocalDate.now())) {
+			    	String batchName = bvd.getBatchName();
+			    	List<Batch> filteredbatchs = batchs.stream().filter((batch)->!(batch.getName().equals(batchName))).toList();
+			    	student.setBatchs(filteredbatchs);
+			    	 student = studentRepo.save(student);
+			    }
+		}
+		   
+		   return student.getBatchs();
+		  
 		}
 		return null;
 	}
@@ -264,5 +434,197 @@ public class UserServiceImpl implements UserService {
 		
 		
 	}
+	@Override
+	public List<Batch> search(@RequestParam("key") String keyword){
+		List<Batch> batchs;
+		 if (keyword == null || keyword.trim().isEmpty()) {
+	            batchs= batchRepo.findAll(); // return all if empty
+	        }
+		 else {
+	        batchs= batchRepo.findByNameContainingIgnoreCase(keyword);
+	        
+		 }
+		 
+		 
+		 return updateForSecure(batchs);
+	    }
+	
+	public List<PurchaseOrder> getMyPOS(){
+		
+		 String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		 User user = userRepo.findByEmail(email);
+		   List<PurchaseOrder> purchaseOrders = purchaseOrderRepo.findByUser(user);
+		   for (PurchaseOrder purchaseOrder : purchaseOrders) {
+			  System.out.println("=================");
+		}
+		   return purchaseOrders;
+		
+	}
+	
+	public ResponseEntity<Resource> streamVideo(String filePath, String rangeHeader) throws IOException {
+	    File videoFile = new File(filePath);
+	    if (!videoFile.exists()) {
+	        return ResponseEntity.notFound().build();
+	    }
 
-}
+	    long fileSize = videoFile.length();
+	    InputStreamResource resource;
+	    long start = 0;
+	    long end = fileSize - 1;
+
+	    if (StringUtils.hasText(rangeHeader)) {
+	        List<HttpRange> ranges = HttpRange.parseRanges(rangeHeader);
+	        HttpRange range = ranges.get(0);
+
+	        start = range.getRangeStart(fileSize);
+	        end = range.getRangeEnd(fileSize);
+	    }
+
+	    long contentLength = end - start + 1;
+	    FileInputStream inputStream = new FileInputStream(videoFile);
+	    inputStream.skip(start);
+	    resource = new InputStreamResource(inputStream);
+
+	    return ResponseEntity.status(rangeHeader != null ? HttpStatus.PARTIAL_CONTENT : HttpStatus.OK)
+	            .header(HttpHeaders.CONTENT_TYPE, Files.probeContentType(videoFile.toPath()))
+	            .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+	            .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(contentLength))
+	            .header(HttpHeaders.CONTENT_RANGE, "bytes " + start + "-" + end + "/" + fileSize)
+	            .body(resource);
+	}
+	
+	public ResponseEntity<Resource> viewDocument(String filePath) throws IOException {
+        File file = new File(filePath);
+        if (!file.exists()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Resource resource = new FileSystemResource(file);
+        String contentType = Files.probeContentType(file.toPath());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getName() + "\"")
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(resource);
+    }
+	
+	
+	
+	
+	public List<UserTestAnswer> getAlluserTestAns(){
+		  String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		  User user = userRepo.findByEmail(email);
+		return userTestAnsRepo.findByUser(user);
+	}
+	
+	
+	
+	public List<Batch> updateForSecure(List<Batch> batchs) {
+	    List<Batch> updatedBatchs = new ArrayList<>();
+
+	    for (Batch batch : batchs) {
+	        // Sanitize Lecturers
+	        List<Lecturer> lecturers = batch.getLecturers();
+	        List<Lecturer> updatedLecturers = new ArrayList<>();
+
+	        for (Lecturer lecturer : lecturers) {
+	            lecturer.setSalary(null);
+	            lecturer.setLecturerBatchSubjects(null);
+	            lecturer.getUser().setAddress(null);
+	            lecturer.getUser().setCreatedAt(null);
+	            lecturer.getUser().setPassword(null);
+	            lecturer.getUser().setPhono(null);
+	            lecturer.getUser().setRole(null);
+	            lecturer.getUser().setUpdateAt(null);
+	            updatedLecturers.add(lecturer);
+	        }
+	        batch.setLecturers(updatedLecturers);
+
+	        // Sanitize ClassRooms and Classes
+	        List<ClassRoom> classRooms = batch.getClassRooms();
+	        List<ClassRoom> updatedClassRooms = new ArrayList<>();
+
+	        for (ClassRoom classRoom : classRooms) {
+	            List<Class> classes = classRoom.getClasses();
+	            List<Class> updatedClasses = new ArrayList<>();
+
+	            for (Class class1 : classes) {
+	                Lecturer lecturer = class1.getLecturer();
+	                if (lecturer != null) {
+	                    lecturer.setBatches(null);
+	                    lecturer.setLecturerBatchSubjects(null);
+	                    lecturer.setDateOfJoining(null);
+	                    lecturer.setSalary(null);
+
+	                    String name = lecturer.getUser().getName();
+	                    User user = new User();
+	                    user.setName(name);
+	                    lecturer.setUser(user);
+	                }
+
+	                class1.setLecturer(lecturer);
+	                class1.setNotes(null);
+	                class1.setTests(null);
+	                class1.setVideos(null);
+	                class1.setZoomlink(null);
+
+	                updatedClasses.add(class1);
+	            }
+
+	            classRoom.setClasses(updatedClasses);
+	            updatedClassRooms.add(classRoom);
+	        }
+
+	        batch.setClassRooms(updatedClassRooms);
+	        updatedBatchs.add(batch);
+	    }
+
+	    return updatedBatchs;
+	}
+
+	
+	
+	 @Override
+	    public void sendOtp(String email) throws UserException {
+	        User user = userRepo.findByEmail(email);
+	        if (user == null) throw new UserException("No user found with this email");
+
+	        String otp = String.valueOf(new Random().nextInt(900000) + 100000); // 6-digit OTP
+	        otpStore.put(email, otp);
+
+	        String subject = "APCLOTE - Password Reset OTP";
+	        String body = "Dear " + user.getName() + ",\n\n"
+	                + "Your OTP for password reset is: " + otp + "\n"
+	                + "This OTP is valid for 10 minutes.\n\n"
+	                + "If you didn't request this, please ignore this email.\n\n"
+	                + "Team APCLOTE";
+
+	        emailService.sendEmail(email, subject, body);
+	    }
+
+	    @Override
+	    public boolean verifyOtp(String email, String otp) {
+	        String storedOtp = otpStore.get(email);
+	        if (storedOtp != null && storedOtp.equals(otp)) {
+	            otpStore.remove(email); // clear after successful verification
+	            return true;
+	        }
+	        return false;
+	    }
+
+	    @Override
+	    public void resetPassword(String email, String newPassword) throws UserException {
+	        User user = userRepo.findByEmail(email);
+	        if (user == null) throw new UserException("User not found");
+
+	        user.setPassword(encoder.encode(newPassword));
+	        userRepo.save(user);
+	    }
+
+	
+	
+	
+	}
+
+
+

@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  --color-green-400: #4ade80; /* Tailwind’s green-400 */
+}
+
+.cart {
+  cursor: pointer;
+  transform-origin: center bottom; /* rotation pivot */
+  animation: cartFlip 5s ease-in-out infinite;
+  transition: transform 0.3s;
+}
+
+/* Stop animation on hover */
+.cart:hover {
+  animation-play-state: paused;
+}
+
+/* Keyframes for movement + flip */
+@keyframes cartFlip {
+  0% {
+    transform: translateY(0) rotateY(0deg);
+  }
+  20% {
+    transform: translateY(-10px) rotateY(0deg)  ; /* move up */
+  }
+  40% {
+    transform: translateY(5px) rotateY(0deg)  ; /* move down */
+  }
+  60% {
+    transform: translateY(0) ; /* flip */
+  }
+  100% {
+    transform: translateY(0)   ; /* back to normal */
+  }
+}

@@ -30,5 +30,6 @@ public interface BatchRepo extends JpaRepository<Batch, Long> {
             "WHERE bl.lecturers_id IN (:lecturerIds)", nativeQuery = true)
     public List<Batch> findBatchesByLecturers(@Param("lecturerIds") List<Long> lecturerIds);
 
+	public List<Batch> findByNameContainingIgnoreCase(String keyword);
 
 }

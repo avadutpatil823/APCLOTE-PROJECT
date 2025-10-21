@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -22,11 +23,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import in.ap.entity.Batch;
+import in.ap.entity.BatchLecturerSubjectInter;
 import in.ap.entity.Class;
 import in.ap.entity.ClassNotesFile;
 import in.ap.entity.ClassRoom;
 import in.ap.entity.ClassVideo;
 import in.ap.entity.Lecturer;
+import in.ap.entity.LecturerBatchSubject;
 import in.ap.entity.Question;
 import in.ap.entity.Test;
 import in.ap.entity.User;
@@ -35,6 +38,7 @@ import in.ap.repo.ClassNotesFileRepo;
 import in.ap.repo.ClassRepo;
 import in.ap.repo.ClassRoomRepo;
 import in.ap.repo.ClassVideoRepo;
+import in.ap.repo.LecturerBatchSubjectRepo;
 import in.ap.repo.LecturerRepo;
 import in.ap.repo.QuestionRepo;
 import in.ap.repo.TestRepo;
@@ -55,6 +59,7 @@ public class LecturerServiceImpl implements LecturerService {
 	private TestRepo testRepo;
 	private ClassRoomRepo classRoomRepo;
 	private QuestionRepo questionRepo;
+	private LecturerBatchSubjectRepo lbsRepo;
 	
 	private final String DIR="videos/";
 	private final String FILEDIR="Notes/";
@@ -65,24 +70,30 @@ public class LecturerServiceImpl implements LecturerService {
 		User user = userRepo.findByEmail(email);
 		Lecturer lecturer = lecturerRepo.findByUser(user);
 		List<Batch> batchs = batchRepo.findBatchesByLecturer(lecturer.getId());
-		return batchs;
+		
+		List<Batch> uniqueBatches = batchs.stream()
+			    .collect(Collectors.collectingAndThen(
+			        Collectors.toMap(Batch::getName, batch -> batch, (b1, b2) -> b1),
+			        map -> new ArrayList<>(map.values())
+			    ));
+		return uniqueBatches;
 	}
 
 	@Override
 	public Class createClass(Class class1,Principal principal) {
-		System.out.println(class1.toString());
+		
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		String email = authentication.getName();
 		User user = userRepo.findByEmail(email);
 		Lecturer lecturer = lecturerRepo.findByUser(user);
-		System.out.println(lecturer.toString());
+		
 		class1.setLecturer(lecturer);
 		ClassRoom classRoom = classRoomRepo.findById(class1.getClassRoom().getId()).get();
 		class1.setClassRoom(classRoom);
 		Class savedClass = classRepo.save(class1);
 		classRoom.getClasses().add(savedClass);
 		classRoomRepo.save(classRoom);
-		System.out.println(savedClass.toString());
+		
 		
 		return savedClass;
 		
@@ -189,6 +200,15 @@ public class LecturerServiceImpl implements LecturerService {
 		classRepo.save(classs);
 		return savedTest2;
 		
+	}
+	
+	
+	public List<BatchLecturerSubjectInter> getlbsOfLecturer(){
+		String name = SecurityContextHolder.getContext().getAuthentication().getName();
+		User user = userRepo.findByEmail(name);
+		Lecturer lecturer = lecturerRepo.findByUser(user);
+		List<BatchLecturerSubjectInter> lbs = lbsRepo.findByLecturerId(lecturer.getId());
+		return lbs;
 	}
 	
 

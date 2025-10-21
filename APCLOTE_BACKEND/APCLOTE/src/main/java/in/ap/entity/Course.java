@@ -6,7 +6,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -24,10 +26,12 @@ import jakarta.persistence.OneToOne;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 @Entity
 @NoArgsConstructor
 @Getter
 @Setter
+@ToString
 public class Course {
 
 	
@@ -37,12 +41,11 @@ public class Course {
 	private String name;
 	private int duration;
 	private Double fee;
-	private File Syllabus;
+	private String syllabusFilePath;
 	@OneToMany(mappedBy = "course",fetch = FetchType.EAGER)
     private List<Subject> subjects = new ArrayList<>();
-	@OneToMany
-	@JsonIgnore
-	@ElementCollection
-	private List<Batch> batchs;
+	@OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<Batch> batches = new ArrayList<>();
 
 }

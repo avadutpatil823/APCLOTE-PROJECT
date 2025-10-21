@@ -6,8 +6,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -39,11 +42,9 @@ public class Lecturer {
 	@OneToOne
 	private User user;
 	
-	@ElementCollection
-    @CollectionTable(name = "lecturer_batch_subjects",joinColumns =@JoinColumn(name = "lecturer_id") )
-    @MapKeyColumn(name = "batch_name")
-    @Column(name = "subject_name")
-    private Map<String, String> batchsAndSubjects = new HashMap<>();
+	@OneToMany(mappedBy = "lecturer", cascade = CascadeType.ALL)
+	@JsonIgnore
+    private List<LecturerBatchSubject> lecturerBatchSubjects = new ArrayList<>();
 	private Double salary;
 	private LocalDate dateOfJoining;
 	
