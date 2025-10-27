@@ -1,0 +1,47 @@
+package in.ap.security;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+
+@Configuration
+public class AppConfig {
+
+	@Bean
+	public SecurityFilterChain filterChain(HttpSecurity http, OAuth2SuccessHandler successHandler) throws Exception {
+	    http
+	        .cors()
+	        .and()
+	        .csrf(csrf -> csrf.disable())
+	        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+	        .authorizeHttpRequests(auth -> auth
+	            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+	            .requestMatchers("/api/**").permitAll()
+	            .requestMatchers("/auth/**").permitAll()
+	            .requestMatchers("/oauth2/**").permitAll()
+	            .requestMatchers("/lecturer/**").hasRole("LECTURER")
+	            .requestMatchers("/admin/**").hasRole("ADMIN")
+	            .anyRequest().authenticated()
+	        )
+	        .oauth2Login(oauth -> oauth
+	            .successHandler(successHandler)
+	            .failureUrl("/auth/oauth2/failure")
+	        )
+	        .addFilterBefore(new JwtValidator(), BasicAuthenticationFilter.class);
+
+	    return http.build();
+	}
+	@Bean
+	public PasswordEncoder encoder()
+	{
+		return new BCryptPasswordEncoder();
+	}
+	
+	
+}

@@ -1,0 +1,53 @@
+spring.application.name=APCLOTE
+spring.datasource.url=jdbc:mysql://localhost:3306/APCLOTE
+spring.datasource.username=root
+spring.datasource.password=system2003
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+server.port=9898
+
+
+# Razorpay test keys (keep secret key only on server)
+razorpay.key.id=rzp_test_RYPkp8ubeLcnED
+razorpay.key.secret=MA5bKJPIoElVYB9XIPUIH4rC
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+
+jwt.secrete=wwde4rrfgt bko;njbgvzcsevxd dsdcgrthvrcyswzzwer23c75bvgcgrbxe bbfwxxe ap
+jwt.exptime=172800000
+
+
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=avadutpatil64@gmail.com
+spring.mail.password=frsp rdzu yfsk nwuz
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+
+# Maximum file size allowed for a single file upload
+spring.servlet.multipart.max-file-size=1000MB
+
+# Maximum request size allowed for multipart/form-data requests
+spring.servlet.multipart.max-request-size=1000MB
+
+# Google OAuth2 Configuration
+spring.security.oauth2.client.registration.google.client-id=855474308429-3ld5hqcgav17aftuv2ad3708n227utee.apps.googleusercontent.com
+spring.security.oauth2.client.registration.google.client-secret=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
+#spring.security.oauth2.client.registration.google.redirect-uri: http://localhost:9898/login/oauth2/code/google
+spring.security.oauth2.client.registration.google.scope=email,profile
+
+# Facebook OAuth2 Configuration
+spring.security.oauth2.client.registration.facebook.client-id=836852088913799
+spring.security.oauth2.client.registration.facebook.client-secret=9251631a2ecad7a97ff2cc65a736233f
+#spring.security.oauth2.client.registration.facebook.redirect-uri: http://localhost:9898/login/oauth2/code/facebook
+spring.security.oauth2.client.registration.facebook.scope=email,public_profile
+
+# GitHub OAuth2 Configuration
+spring.security.oauth2.client.registration.github.client-id=Ov23lixD7caOx5WuVKZf
+spring.security.oauth2.client.registration.github.client-secret=57bcec33a38c7bf9a0b75f621a5655c6513b5455
+#spring.security.oauth2.client.registration.github.redirect-uri: http://localhost:9898/login/oauth2/code/github
+spring.security.oauth2.client.registration.github.scope=read:user,user:email
+
+

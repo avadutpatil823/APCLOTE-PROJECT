@@ -1,0 +1,49 @@
+package in.ap.security;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, OAuth2SuccessHandler successHandler) throws Exception {
+        http
+            .cors().and()
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/oauth2/**").permitAll()
+                .requestMatchers("/api/**").permitAll()
+                .requestMatchers("/lecturer/**").hasRole("LECTURER")
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .anyRequest().authenticated()
+            )
+            // ✅ OAuth2 Login — success handler will generate JWT for frontend
+            .oauth2Login(oauth -> oauth
+                .successHandler(successHandler)
+                .failureUrl("/auth/oauth2/failure")
+            )
+            // ✅ Disable default form login (we use React)
+            .formLogin(form -> form.disable())
+            .logout(logout -> logout.disable())
+            // ✅ Add your JWT filter for token validation
+            .addFilterBefore(new JwtValidator(), BasicAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder encoder() {
+        return new BCryptPasswordEncoder();
+    }
+}

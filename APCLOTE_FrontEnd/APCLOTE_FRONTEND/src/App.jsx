@@ -49,6 +49,7 @@ import OAuth2RedirectHandler from './Auth/OAuth2RedirectHandler';
 import Terms from './Compoents/User/Terms';
 import Privacy from './Compoents/User/Privacy';
 import FounderDetails from './Compoents/User/Founder';
+import PaymentPage from './Compoents/User/PaymentPage';
 
 
 function App() {
@@ -78,6 +79,9 @@ function App() {
         <Route path="/createOrder" element={ <ErrorBoundary><CreateOrder/></ErrorBoundary>   }/>
         <Route path="/myPOs" element={ <ErrorBoundary><MyPurchaseOrders/></ErrorBoundary>   }/>
         <Route path="/pay" element={ <ErrorBoundary><Payment/></ErrorBoundary>   }/>
+
+         <Route path="/dopay" element={ <ErrorBoundary><PaymentPage/></ErrorBoundary>   }/>
+
          <Route path="/uploadVideo" element={ <ErrorBoundary><UploadVideo/></ErrorBoundary>   }/>
           <Route path="/uploadNotes" element={ <ErrorBoundary><UploadNotes/></ErrorBoundary>   }/>
        <Route path="/createTest" element={ <ErrorBoundary><CreateTest/></ErrorBoundary>   }/>

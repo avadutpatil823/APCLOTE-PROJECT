@@ -13,33 +13,40 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 @Configuration
 public class AppConfig {
 
-	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http, OAuth2SuccessHandler successHandler) throws Exception {
-	    http
-	        .csrf(csrf -> csrf.disable())
-	        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-	        .authorizeHttpRequests(auth -> auth
-	            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-	            .requestMatchers("/api/**").permitAll()
-	            .requestMatchers("/auth/**").permitAll()
-	            .requestMatchers("/oauth2/**").permitAll()
-	            .requestMatchers("/lecturer/**").hasRole("LECTURER")
-	            .requestMatchers("/admin/**").hasRole("ADMIN")
-	            .anyRequest().authenticated()
-	        )
-	        .oauth2Login(oauth -> oauth
-	            .successHandler(successHandler)
-	            .failureUrl("/auth/oauth2/failure")
-	        )
-	        .addFilterBefore(new JwtValidator(), BasicAuthenticationFilter.class);
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           OAuth2SuccessHandler successHandler,
+                                           RestAuthenticationEntryPoint restEntryPoint,
+                                           JwtValidator jwtValidator) throws Exception {
 
-	    return http.build();
-	}
-	@Bean
-	public PasswordEncoder encoder()
-	{
-		return new BCryptPasswordEncoder();
-	}
-	
-	
+        http
+            .cors()
+            .and()
+            .csrf(csrf -> csrf.disable())
+            .formLogin(form -> form.disable()) // disable HTML form login
+            .httpBasic(basic -> basic.disable())  // disable Basic Auth popups
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(restEntryPoint)) // 👈 force JSON
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/auth/**", "/oauth2/**","/api/**").permitAll()
+                .requestMatchers("/lecturer/**").hasRole("LECTURER")
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .anyRequest().authenticated()
+            )
+            // keep OAuth2 login for browser-based login
+            .oauth2Login(oauth -> oauth
+                .successHandler(successHandler)
+                .failureUrl("/auth/oauth2/failure")
+            )
+            // make sure JwtValidator runs before authentication happens
+            .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 }

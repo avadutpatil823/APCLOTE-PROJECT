@@ -44,6 +44,7 @@ public class PurchaseOrder {
     private String status;
 	private LocalDate purchaseDate;
 	private double uniqueLL;
+	private String razorpayOrderId;
 
 
 

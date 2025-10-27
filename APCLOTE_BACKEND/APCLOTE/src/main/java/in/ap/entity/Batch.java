@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -47,8 +48,21 @@ public class Batch {
 	
 	 @OneToMany(mappedBy = "batch", cascade = CascadeType.ALL)
 	 private List<LecturerBatchSubject> lecturerBatchSubjects = new ArrayList<>();
+	 
 	
+	
+	 @Override
+	    public boolean equals(Object o) {
+	        if (this == o) return true;
+	        if (o == null || getClass() != o.getClass()) return false;
+	        Batch batch = (Batch) o;
+	        return Objects.equals(id, batch.id);
+	    }
 
+	    @Override
+	    public int hashCode() {
+	        return Objects.hash(id);
+	    }
 	
 	
 }

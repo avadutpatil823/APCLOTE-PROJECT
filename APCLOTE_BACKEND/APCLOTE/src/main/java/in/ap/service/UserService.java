@@ -43,4 +43,7 @@ public interface UserService {
     void sendOtp(String email) throws UserException;
     boolean verifyOtp(String email, String otp);
     void resetPassword(String email, String newPassword) throws UserException;
+    public PurchaseOrder savePurchaseOrder(PurchaseOrder po);
+    public void markPaymentFailed(Long purchaseOrderId, String rzOrderId, String rzPaymentId, String signature);
+    public Payment markPaymentCompleted(Long purchaseOrderId, String rzOrderId, String rzPaymentId, String signature) throws UserException;
 }

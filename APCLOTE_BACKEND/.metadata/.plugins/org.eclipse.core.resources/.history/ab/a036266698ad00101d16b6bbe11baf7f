@@ -1,5 +1,0 @@
-package in.ap.security;
-
-public class OAuth2SuccessHandler {
-
-}

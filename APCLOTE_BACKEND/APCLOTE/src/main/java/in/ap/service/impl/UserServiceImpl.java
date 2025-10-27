@@ -230,7 +230,7 @@ public class UserServiceImpl implements UserService {
 	@Override
 	public Payment doPayment(Long purchaseOrderId,String upiId) {
 		PurchaseOrder po = purchaseOrderRepo.findById(purchaseOrderId).get();
-		System.out.println(po.toString());
+		
 		Payment payment = new Payment();
 		try {
 			
@@ -620,11 +620,135 @@ public class UserServiceImpl implements UserService {
 	        user.setPassword(encoder.encode(newPassword));
 	        userRepo.save(user);
 	    }
+	    
+	 
+	    public PurchaseOrder savePurchaseOrder(PurchaseOrder po) {
+	        return purchaseOrderRepo.save(po);
+	    }
+
+	    public void markPaymentFailed(Long purchaseOrderId, String rzOrderId, String rzPaymentId, String signature) {
+	        PurchaseOrder po = purchaseOrderRepo.findById(purchaseOrderId).orElseThrow();
+	        po.setStatus("FAILED");
+	        PurchaseOrder savedPO = purchaseOrderRepo.save(po);
+
+	        Payment payment = new Payment();
+	        payment.setPurchaseOrder(savedPO);
+	        payment.setOrderId(rzOrderId);
+	        payment.setPaymentId(rzPaymentId);
+	        payment.setRazorpaySignature(signature);
+	        payment.setStatus("FAILED");
+	        payment.setAmount(po.getFee());
+	        paymentRepo.save(payment);
+	    }
+	    
+	    public Payment markPaymentCompleted(Long purchaseOrderId, String rzOrderId, String rzPaymentId, String signature) throws UserException {
+	    	System.out.println("Mark p complite");
+	        PurchaseOrder po = purchaseOrderRepo.findById(purchaseOrderId).orElseThrow();
+	        // verify signature again here if you like (already done earlier)
+	        po.setStatus("COMPLETED");
+	        po.setRazorpayOrderId(rzOrderId);
+	        PurchaseOrder savedPO = purchaseOrderRepo.save(po);
+	        
+	        String randomString2 = generateRandomString();
+			String recieptId="Rec##445%"+randomString2;
+
+	        Payment payment = new Payment();
+	        payment.setPurchaseOrder(savedPO);
+	        payment.setOrderId(rzOrderId);
+	        payment.setPaymentId(rzPaymentId);
+	        payment.setRazorpaySignature(signature);
+	        payment.setStatus("COMPLETED");
+	        payment.setAmount(po.getFee());
+	        payment.setEmail(po.getUser().getEmail());
+	        payment.setReciptId(recieptId);
+	        Payment saved = paymentRepo.save(payment);
+
+	        Student std ;
+			std= studentRepo.findByUserEmail(savedPO.getUser().getEmail());
+			System.out.println(std);
+			if(std==null) {
+				System.out.println("innnnnnnn");
+				std=new Student();
+			}
+			
+			
+			std.setUniqueKey(Math.random()*10);
+			std.getPurchaseOrder().add(savedPO);
+			std.setUser(savedPO.getUser());
+			std.getBatchs().add(savedPO.getBatch());
+			BatchValidyDate bv = new BatchValidyDate();
+			bv.setBatchName(savedPO.getBatch().getName());
+			bv.setValidityDate(LocalDate.now().plusYears(1));
+			BatchValidyDate batchValidyDate = bvRepo.save(bv);
+			std.getBatchValidyDate().add(batchValidyDate);
+			
+			
+			
+			
+			
+			Student student = studentRepo.save(std);
+			student.toString();
+			batchValidyDate.setStudent(student);
+			bvRepo.save(batchValidyDate);
+			
+			
+			LocalDateTime now = LocalDateTime.now();
+			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("h a dd/MM/yyyy", Locale.ENGLISH);
+			String date = now.format(formatter).toLowerCase();
+
+	        String formatted = now.format(formatter).toLowerCase();
+			if(payment.getStatus().equalsIgnoreCase("COMPLITED")) {
+				
+				EmailService emailService = new EmailService();
+				String subject="🎉 Welcome to APCLOTE! Your Course Purchase is Confirmed";
+				String body="Dear ["+student.getUser().getName()+"],\r\n"
+						+ "\r\n"
+						+ "Thank you for choosing APCLOTE – Your Online Coaching Platform for Success. We’re excited to have you on board!\r\n"
+						+ "\r\n"
+						+ "✅ Purchase Confirmation:\r\n"
+						+ "You have successfully enrolled in:\r\n"
+						+ "Course Name: ["+payment.getPurchaseOrder().getBatch().getName()+"]\r\n"
+						+ "Order ID: ["+payment.getOrderId()+"]\r\n"
+						+ "Purchase Date: ["+date+"]\r\n"
+						+ "\r\n"
+						+ "Your learning journey starts now! You can access your course anytime by logging into your APCLOTE account.\r\n"
+						+ "\r\n"
+						+ "👉 [Access Your Course] (<a>www.APCLOTE.in.course/</a>\n"
+						+ "\r\n"
+						+ "What’s next?\r\n"
+						+ "\r\n"
+						+ "Explore your dashboard and get familiar with the platform.\r\n"
+						+ "\r\n"
+						+ "Start your first lesson today and track your progress easily.\r\n"
+						+ "\r\n"
+						+ "Reach out to our support team anytime if you face difficulties.\r\n"
+						+ "\r\n"
+						+ "At APCLOTE, we believe in making learning simple, engaging, and effective. We’re confident this course will help you reach your goals.\r\n"
+						+ "\r\n"
+						+ "If you have any questions, feel free to contact us at support@apclote.com\r\n"
+						+ ".\r\n"
+						+ "\r\n"
+						+ "Once again, welcome to the APCLOTE family! 🚀\r\n"
+						+ "\r\n"
+						+ "Best regards,\r\n"
+						+ "Team APCLOTE\r\n"
+						+ "Your Online Coaching Partner";
+				emailService.sendEmail(po.getUser().getEmail(), subject, body);
+
+	       
+
+	        
+	    }
+			
+			
+
+			return saved;
 
 	
 	
 	
 	}
+}
 
 
 
