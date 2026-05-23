@@ -1,0 +1,217 @@
+package in.ap.service.impl;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.security.Principal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import in.ap.entity.Batch;
+import in.ap.entity.BatchLecturerSubjectInter;
+import in.ap.entity.Class;
+import in.ap.entity.ClassNotesFile;
+import in.ap.entity.ClassRoom;
+import in.ap.entity.ClassVideo;
+import in.ap.entity.Lecturer;
+import in.ap.entity.LecturerBatchSubject;
+import in.ap.entity.Question;
+import in.ap.entity.Test;
+import in.ap.entity.User;
+import in.ap.repo.BatchRepo;
+import in.ap.repo.ClassNotesFileRepo;
+import in.ap.repo.ClassRepo;
+import in.ap.repo.ClassRoomRepo;
+import in.ap.repo.ClassVideoRepo;
+import in.ap.repo.LecturerBatchSubjectRepo;
+import in.ap.repo.LecturerRepo;
+import in.ap.repo.QuestionRepo;
+import in.ap.repo.TestRepo;
+import in.ap.repo.UserRepo;
+import in.ap.service.LecturerService;
+import io.micrometer.common.util.StringUtils;
+import lombok.AllArgsConstructor;
+@Service
+@AllArgsConstructor
+public class LecturerServiceImpl implements LecturerService {
+	
+	private LecturerRepo lecturerRepo;
+	private UserRepo userRepo;
+	private ClassRepo classRepo;
+	private BatchRepo batchRepo;
+	private ClassVideoRepo classVideoRepo;
+	private ClassNotesFileRepo classNotesFileRepo;
+	private TestRepo testRepo;
+	private ClassRoomRepo classRoomRepo;
+	private QuestionRepo questionRepo;
+	private LecturerBatchSubjectRepo lbsRepo;
+	
+	private final String DIR="videos/";
+	private final String FILEDIR="Notes/";
+	
+
+	@Override
+	public List<Batch> getBatchsOFLecturer(String email) {
+		User user = userRepo.findByEmail(email);
+		Lecturer lecturer = lecturerRepo.findByUser(user);
+		List<Batch> batchs = batchRepo.findBatchesByLecturer(lecturer.getId());
+		
+		List<Batch> uniqueBatches = batchs.stream()
+			    .collect(Collectors.collectingAndThen(
+			        Collectors.toMap(Batch::getName, batch -> batch, (b1, b2) -> b1),
+			        map -> new ArrayList<>(map.values())
+			    ));
+		return uniqueBatches;
+	}
+
+	@Override
+	public Class createClass(Class class1,Principal principal) {
+		
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		String email = authentication.getName();
+		User user = userRepo.findByEmail(email);
+		Lecturer lecturer = lecturerRepo.findByUser(user);
+		
+		class1.setLecturer(lecturer);
+		ClassRoom classRoom = classRoomRepo.findById(class1.getClassRoom().getId()).get();
+		class1.setClassRoom(classRoom);
+		Class savedClass = classRepo.save(class1);
+		classRoom.getClasses().add(savedClass);
+		classRoomRepo.save(classRoom);
+		
+		
+		return savedClass;
+		
+	}
+
+	@Override
+	public String uplpoadVideo(MultipartFile file1, ClassVideo classVideo, Long classId) throws IOException {
+
+	    try {
+	        File dir = new File(DIR);
+	        if (!dir.exists()) {
+	            dir.mkdir();
+	        }
+
+	        Class class1 = classRepo.findById(classId).orElseThrow();
+	        classVideo.setClasss(class1);
+
+	        String originalFilename = file1.getOriginalFilename();
+	        String contentType = file1.getContentType();
+	        long size = file1.getSize();
+
+	        String fileName = org.springframework.util.StringUtils.cleanPath(originalFilename);
+	        String cleanDir = org.springframework.util.StringUtils.cleanPath(DIR);
+
+	        Path path = Paths.get(cleanDir, fileName);
+
+	        classVideo.setFilePath(path.toString());
+	        classVideo.setContentType(contentType);
+	        classVideo.setSize(size);
+
+	        // ✅ SAVE FILE
+	        InputStream inputStream = file1.getInputStream();
+	        Files.copy(inputStream, path, StandardCopyOption.REPLACE_EXISTING);
+
+	        // ✅ SAVE DB (includes description + transcript)
+	        classVideoRepo.save(classVideo);
+
+	        return "Video Uploaded Successfully";
+
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	        return "Failed To Upload";
+	    }
+	}
+	@Override
+	public String uploadNotes(MultipartFile file1,ClassNotesFile classNotesFile,Long classId) {
+		try {
+			
+			File file = new File(FILEDIR);
+			if(!file.exists()) {
+				file.mkdir();
+			}
+			Class class1 = classRepo.findById(classId).get();
+		    classNotesFile.setClasss(class1);
+			
+			
+			String originalFilename = file1.getOriginalFilename();
+			String contentType = file1.getContentType();
+			Long size = file1.getSize();
+			
+			String fileName = org.springframework.util.StringUtils.cleanPath(originalFilename);
+			String cleanDir = org.springframework.util.StringUtils.cleanPath(FILEDIR);
+			Path path = Paths.get(cleanDir,fileName );
+			
+			classNotesFile.setContentType(contentType);
+			classNotesFile.setFilePath(path.toString());
+			classNotesFile.setSize(size);
+			
+			InputStream inputStream = file1.getInputStream();
+			Files.copy(inputStream, path, StandardCopyOption.REPLACE_EXISTING);
+			
+			classNotesFileRepo.save(classNotesFile);
+			
+			return "Notes Uploaded Sucessufully";
+			
+		} catch (Exception e) {
+			
+			return "Failed To upload Notes";
+		}
+		
+	}
+
+	@Override
+	public List<Lecturer> getAlllecturers() {
+		
+		return lecturerRepo.findAll();
+	}
+
+	@Override
+	public Test createTest(Test test,Long ClassId) {
+		
+		Class classs = classRepo.findById(ClassId).get();
+		test.setClasss(classs);
+		test.setDate(LocalDate.now());
+		Test savedTest = testRepo.save(test);
+		List<Question> questions = new ArrayList<>();
+		for (Question question : test.getQuestions()) {
+			question.setTest(savedTest);
+			Question savedQuestion = questionRepo.save(question);
+			questions.add(savedQuestion);
+			
+		}
+		savedTest.setQuestions(questions);
+		Test savedTest2 = testRepo.save(savedTest);
+		classs.getTests().add(savedTest2);
+		classRepo.save(classs);
+		return savedTest2;
+		
+	}
+	
+	
+	public List<BatchLecturerSubjectInter> getlbsOfLecturer(){
+		String name = SecurityContextHolder.getContext().getAuthentication().getName();
+		User user = userRepo.findByEmail(name);
+		Lecturer lecturer = lecturerRepo.findByUser(user);
+		List<BatchLecturerSubjectInter> lbs = lbsRepo.findByLecturerId(lecturer.getId());
+		return lbs;
+	}
+	
+
+}
